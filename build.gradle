@@ -1,5 +1,8 @@
 apply plugin: 'java'
 apply plugin: 'idea'
+apply plugin: 'application'
+
+mainClassName = "org.connectbot.sshlib.Main"
 
 public String getPlatform(String platform) {
   switch (platform.replaceAll(' ', '').toLowerCase()) {
