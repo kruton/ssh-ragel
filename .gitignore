@@ -6,3 +6,16 @@ gradle-app.setting
 
 # Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
 !gradle-wrapper.jar
+
+# JetBrains IDEs
+*.iml
+
+# Directory-based project
+.idea/
+
+# File-based project format
+*.ipr
+*.iws
+
+# IntelliJ
+/out/
