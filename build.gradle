@@ -70,3 +70,46 @@ compileJava {
   source = ['src/main/java', 'build/generated-src/java']
   options.fork = true
 }
+
+idea {
+  module {
+    generatedSourceDirs += file('build/generated-src/java')
+
+    // For ease of development
+    downloadJavadoc = true
+    downloadSources = true
+
+    iml.withXml { xmlFile ->
+      // setup 'Gradle' external manager
+      def externalProjectsManager = xmlFile.asNode().component.find { it.@name == 'ExternalProjectsManager' } as Node
+      if (externalProjectsManager) {
+          Node gradleManager = externalProjectsManager.system.find { it.@id == 'GRADLE' }
+          if (gradleManager)
+              externalProjectsManager.remove(gradleManager)
+      } else {
+          externalProjectsManager = xmlFile.asNode().appendNode('component', [name: 'ExternalProjectsManager']);
+      }
+
+      def builder = new NodeBuilder()
+      def gradleManager = builder.system(id: "GRADLE") {
+        state {
+          projects_view {
+          }
+        }
+      }
+      externalProjectsManager.append gradleManager
+    }
+  }
+
+  project {
+    ipr.withXml { xmlFile ->
+      // setup Git root
+      xmlFile.asNode().component.find { it.@name == 'VcsDirectoryMappings' }.replaceNode {
+        component(name: 'VcsDirectoryMappings') {
+          mapping(directory: "",  vcs: "")
+          mapping(directory: "\$PROJECT_DIR\$", vcs: 'Git')
+        }
+      }
+    }
+  }
+}
