@@ -21,7 +21,7 @@ ext {
 task ragel() {
   inputs.dir 'src/main/ragel'
 
-  ext.ragelOutputDir = file('build/generated-src/java/org/connectbot/sshlib/parser')
+  ext.ragelOutputDir = file("$buildDir/generated-src/java/org/connectbot/sshlib/parser")
   outputs.dir ragelOutputDir
 
   doFirst {
@@ -65,40 +65,36 @@ task ragel() {
   }
 }
 
+sourceSets.main {
+  java.srcDir file("$buildDir/generated-src/java")
+}
+
 compileJava {
   dependsOn ragel
-  source = ['src/main/java', 'build/generated-src/java']
   options.fork = true
 }
 
 idea {
   module {
-    generatedSourceDirs += file('build/generated-src/java')
+    // Since we output into $buildDir/generated-src/java, we have to manually
+    // redefine these exclusions manually.
+    excludeDirs = [
+        file(".gradle"),
+        file("$buildDir/classes"),
+        file("$buildDir/dependency-cache"),
+        file("$buildDir/libs"),
+        file("$buildDir/reports"),
+        file("$buildDir/test-results"),
+        file("$buildDir/temp"),
+        file("$buildDir/tmp")
+    ] as Set
+
+    // This is picked up from sourceSets, but we need to mark is as generated
+    generatedSourceDirs += file("$buildDir/generated-src/java")
 
     // For ease of development
     downloadJavadoc = true
     downloadSources = true
-
-    iml.withXml { xmlFile ->
-      // setup 'Gradle' external manager
-      def externalProjectsManager = xmlFile.asNode().component.find { it.@name == 'ExternalProjectsManager' } as Node
-      if (externalProjectsManager) {
-          Node gradleManager = externalProjectsManager.system.find { it.@id == 'GRADLE' }
-          if (gradleManager)
-              externalProjectsManager.remove(gradleManager)
-      } else {
-          externalProjectsManager = xmlFile.asNode().appendNode('component', [name: 'ExternalProjectsManager']);
-      }
-
-      def builder = new NodeBuilder()
-      def gradleManager = builder.system(id: "GRADLE") {
-        state {
-          projects_view {
-          }
-        }
-      }
-      externalProjectsManager.append gradleManager
-    }
   }
 
   project {
@@ -110,6 +106,33 @@ idea {
           mapping(directory: "\$PROJECT_DIR\$", vcs: 'Git')
         }
       }
+
+      // setup Gradle in IDEA
+      def gradleSettings = xmlFile.asNode().component.find { it.@name == 'GradleSettings' } as Node
+      if (!gradleSettings) {
+          gradleSettings = xmlFile.asNode().appendNode('component', [name: 'GradleSettings']);
+      }
+
+      def lepSettings = gradleSettings.option.find { it.@name == 'linkedExternalProjectsSettings' } as Node
+      if (!lepSettings) {
+          appendLinkedExternalProjectSettings(gradleSettings)
+      }
     }
   }
+}
+
+def appendLinkedExternalProjectSettings(gradleSettings) {
+  def builder = new NodeBuilder()
+  def lepSettings = builder.option(name: "linkedExternalProjectsSettings") {
+    GradleProjectSettings {
+      option(name: "distributionType", value: "DEFAULT_WRAPPED")
+      option(name: "externalProjectPath", value: '$PROJECT_DIR$')
+      option(name: "modules") {
+        set {
+          option(value: '$PROJECT_DIR$')
+        }
+      }
+    }
+  }
+  gradleSettings.append lepSettings
 }
